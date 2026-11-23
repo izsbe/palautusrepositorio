@@ -187,3 +187,120 @@ class TestKauppa(unittest.TestCase):
 
         # varmistetaan, että metodia tilisiirto on kutsuttu oikeilla parametreilla
         pankki_mock.tilisiirto.assert_called_with("pekka", 42, "12345", ANY, 5)
+
+    def test_aloita_asiointi_nollaa_edellisen_ostoksen_tiedot(self):
+        pankki_mock = Mock()
+        viitegeneraattori_mock = Mock()
+
+        # palautetaan aina arvo 42
+        viitegeneraattori_mock.uusi.return_value = 42
+
+        varasto_mock = Mock()
+
+        # tehdään toteutus saldo-metodille
+        def varasto_saldo(tuote_id):
+            if tuote_id == 1:
+                return 10
+
+        # tehdään toteutus hae_tuote-metodille
+        def varasto_hae_tuote(tuote_id):
+            if tuote_id == 1:
+                return Tuote(1, "maito", 5)
+
+        # otetaan toteutukset käyttöön
+        varasto_mock.saldo.side_effect = varasto_saldo
+        varasto_mock.hae_tuote.side_effect = varasto_hae_tuote
+
+        # alustetaan kauppa
+        kauppa = Kauppa(varasto_mock, pankki_mock, viitegeneraattori_mock)
+
+        # tehdään ostokset
+        kauppa.aloita_asiointi()
+        kauppa.lisaa_koriin(1)
+        kauppa.tilimaksu("pekka", "12345")
+
+        # aloitetaan uusi asiointi
+        kauppa.aloita_asiointi()
+        kauppa.lisaa_koriin(1)
+        kauppa.tilimaksu("liisa", "67890")
+
+        # varmistetaan, että metodia tilisiirto on kutsuttu oikeilla parametreilla
+        pankki_mock.tilisiirto.assert_called_with("liisa", 42, "67890", ANY, 5)
+
+    def test_uusi_viitenumero_jokaiselle_maksutapahtumalle(self):
+        pankki_mock = Mock()
+        viitegeneraattori_mock = Mock(wraps=Viitegeneraattori())
+
+        varasto_mock = Mock()
+
+        # tehdään toteutus saldo-metodille
+        def varasto_saldo(tuote_id):
+            if tuote_id == 1:
+                return 10
+
+        # tehdään toteutus hae_tuote-metodille
+        def varasto_hae_tuote(tuote_id):
+            if tuote_id == 1:
+                return Tuote(1, "maito", 5)
+
+        # otetaan toteutukset käyttöön
+        varasto_mock.saldo.side_effect = varasto_saldo
+        varasto_mock.hae_tuote.side_effect = varasto_hae_tuote
+
+        # alustetaan kauppa
+        kauppa = Kauppa(varasto_mock, pankki_mock, viitegeneraattori_mock)
+
+        # tehdään ensimmäinen ostos
+        kauppa.aloita_asiointi()
+        kauppa.lisaa_koriin(1)
+        kauppa.tilimaksu("pekka", "12345")
+
+        self.assertEqual(viitegeneraattori_mock.uusi.call_count, 1)
+
+        # tehdään toinen ostos
+        kauppa.aloita_asiointi()
+        kauppa.lisaa_koriin(1)
+        kauppa.tilimaksu("liisa", "67890")
+
+        self.assertEqual(viitegeneraattori_mock.uusi.call_count, 2)
+
+        # tehdään kolmas ostos
+        kauppa.aloita_asiointi()
+        kauppa.lisaa_koriin(1)
+        kauppa.tilimaksu("kerttu", "54321")
+
+        self.assertEqual(viitegeneraattori_mock.uusi.call_count, 3)
+
+    def test_poista_korista_palauttaa_tuotteen_varastoon(self):
+        pankki_mock = Mock()
+        viitegeneraattori_mock = Mock()
+
+        # palautetaan aina arvo 42
+        viitegeneraattori_mock.uusi.return_value = 42
+
+        varasto_mock = Mock()
+
+        # tehdään toteutus saldo-metodille
+        def varasto_saldo(tuote_id):
+            if tuote_id == 1:
+                return 10
+
+        # tehdään toteutus hae_tuote-metodille
+        def varasto_hae_tuote(tuote_id):
+            if tuote_id == 1:
+                return Tuote(1, "maito", 5)
+
+        # otetaan toteutukset käyttöön
+        varasto_mock.saldo.side_effect = varasto_saldo
+        varasto_mock.hae_tuote.side_effect = varasto_hae_tuote
+
+        # alustetaan kauppa
+        kauppa = Kauppa(varasto_mock, pankki_mock, viitegeneraattori_mock)
+
+        # tehdään ostokset
+        kauppa.aloita_asiointi()
+        kauppa.lisaa_koriin(1)
+        kauppa.poista_korista(1)
+
+        # varmistetaan, että tuotteen palautus varastoon on kutsuttu
+        varasto_mock.palauta_varastoon.assert_called_with(Tuote(1, "maito", 5))
